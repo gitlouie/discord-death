@@ -4,7 +4,7 @@ import com.google.inject.Provides;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
-import net.runelite.api.Client;
+import net.runelite.api.*;
 
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -16,20 +16,17 @@ import com.google.common.base.Strings;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import javax.imageio.ImageIO;
 import net.runelite.client.events.ConfigChanged;
-import net.runelite.client.game.ItemManager;
-import net.runelite.client.game.ItemStack;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.util.ImageCapture;
-import net.runelite.api.Actor;
 import net.runelite.api.events.ActorDeath;
-import net.runelite.api.Player;
+
 import static net.runelite.http.api.RuneLiteAPI.GSON;
 
+import net.runelite.client.util.Text;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
@@ -53,9 +50,6 @@ public class DiscordDeathPlugin extends Plugin
 	private Client client;
 
 	@Inject
-	private ItemManager itemManager;
-
-	@Inject
 	private OkHttpClient okHttpClient;
 
 	@Inject
@@ -64,7 +58,7 @@ public class DiscordDeathPlugin extends Plugin
 	@Inject
 	private DrawManager drawManager;
 
-	private List<String> lootNpcs;
+	private List<String> friendNames;
 
 
 	@Override
@@ -87,7 +81,11 @@ public class DiscordDeathPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged configChanged)
 	{
-
+		if (configChanged.getGroup().equalsIgnoreCase(DiscordDeathConfig.GROUP))
+		{
+			String string = config.friendNames();
+			friendNames = string != null ? Text.fromCSV(string) : Collections.emptyList();
+		}
 	}
 
 	@Subscribe
@@ -102,6 +100,9 @@ public class DiscordDeathPlugin extends Plugin
 			if (player == client.getLocalPlayer())
 			{
 				stringBuilder.append(actor.getName());
+//				final ChatLineBuffer chatLineBuffer = client.getChatLineMap().get(ChatMessageType.ENGINE);
+//				final MessageNode[] lines = chatLineBuffer.getLines();
+//				final MessageNode line = lines[0];
 
 				if(actor.getInteracting() != null) {
 					stringBuilder.append(" was clapped by "); // replace this with possible death messages
@@ -109,13 +110,35 @@ public class DiscordDeathPlugin extends Plugin
 				}
 				else {
 					//add message if player is not interacting with anything.
+					stringBuilder.append(actor.getName() + " has died...what an idiot.");
 				}
 
 				webhookBody.setContent(stringBuilder.toString());
 				sendWebhook(webhookBody);
 			}
-			else if (player != client.getLocalPlayer() && (player.isFriendsChatMember() || player.isFriend()) && player.getCanvasTilePoly() != null)
+			// Add screenshots if friend death screenshots is enabled
+			else if ((player.isFriendsChatMember() || player.isFriend()) &&
+					player.getCanvasTilePoly() != null && config.screenshotFriendDeath())
 			{
+				stringBuilder.append(player.getName() + " has died.");
+				webhookBody.setContent(stringBuilder.toString());
+
+				// If a specific name is specified, only send when that player has died, otherwise if no player is
+				// specified, always send the picture.
+				if(!friendNames.isEmpty())
+				{
+					for (String name: friendNames)
+					{
+						if(name.equalsIgnoreCase(player.getName()))
+						{
+							sendWebhook(webhookBody);
+						}
+					}
+				}
+				else
+				{
+					sendWebhook(webhookBody);
+				}
 			}
 		}
 	}
@@ -188,32 +211,4 @@ public class DiscordDeathPlugin extends Plugin
 		return byteArrayOutputStream.toByteArray();
 	}
 
-	private static Collection<ItemStack> stack(Collection<ItemStack> items)
-	{
-		final List<ItemStack> list = new ArrayList<>();
-
-		for (final ItemStack item : items)
-		{
-			int quantity = 0;
-			for (final ItemStack i : list)
-			{
-				if (i.getId() == item.getId())
-				{
-					quantity = i.getQuantity();
-					list.remove(i);
-					break;
-				}
-			}
-			if (quantity > 0)
-			{
-				list.add(new ItemStack(item.getId(), item.getQuantity() + quantity, item.getLocation()));
-			}
-			else
-			{
-				list.add(item);
-			}
-		}
-
-		return list;
-	}
 }
