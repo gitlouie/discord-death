@@ -98,8 +98,20 @@ public class DiscordDeathPlugin extends Plugin
 		{
 			Player player = (Player) actor;
 			WebhookBody webhookBody = new WebhookBody();
+			StringBuilder stringBuilder = new StringBuilder();
 			if (player == client.getLocalPlayer())
 			{
+				stringBuilder.append(actor.getName());
+
+				if(actor.getInteracting() != null) {
+					stringBuilder.append(" was clapped by "); // replace this with possible death messages
+					stringBuilder.append(actor.getInteracting().getName());
+				}
+				else {
+					//add message if player is not interacting with anything.
+				}
+
+				webhookBody.setContent(stringBuilder.toString());
 				sendWebhook(webhookBody);
 			}
 			else if (player != client.getLocalPlayer() && (player.isFriendsChatMember() || player.isFriend()) && player.getCanvasTilePoly() != null)
