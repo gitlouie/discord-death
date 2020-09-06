@@ -4,16 +4,13 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
-@ConfigGroup("example")
+@ConfigGroup("DiscordDeathConfig")
 public interface DiscordDeathConfig extends Config
 {
 	@ConfigItem(
-		keyName = "greeting",
-		name = "Welcome Greeting",
-		description = "The message to show to the user when they login"
+			keyName = "webhook",
+			name = "Webhook URL",
+			description = "The Discord Webhook URL to send messages to"
 	)
-	default String greeting()
-	{
-		return "Hello";
-	}
+	String webhook();
 }
